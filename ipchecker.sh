@@ -39,9 +39,54 @@ echo -e "${nc}"
 
 echo -e "${red}"
 read -p "[*].Enter Target IP : " IP
-echo " "
+echo -e "${nc}"
+
+# --- Validate IP format before making any request ---
+ip_regex='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+if [[ -z "$IP" ]]; then
+    echo -e "${redbg}[!] No IP entered. Exiting.${nc}"
+    exit 1
+fi
+
+if [[ ! "$IP" =~ $ip_regex ]]; then
+    echo -e "${redbg}[!] '${IP}' is not a valid IP address format. Exiting.${nc}"
+    exit 1
+fi
+
+# reject any octet over 255 (regex above only checks shape, not range)
+valid_octets=true
+IFS='.' read -r o1 o2 o3 o4 <<< "$IP"
+for octet in "$o1" "$o2" "$o3" "$o4"; do
+    if (( octet > 255 )); then
+        valid_octets=false
+    fi
+done
+if [[ "$valid_octets" == false ]]; then
+    echo -e "${redbg}[!] '${IP}' has an out-of-range octet. Exiting.${nc}"
+    exit 1
+fi
+
+echo -e "${red}"
 echo "[*] checking ${IP}..."
-ipinfo=$(curl -s ipinfo.io/${IP})
+ipinfo=$(curl -s "ipinfo.io/${IP}")
+
+# --- Handle network / empty-response errors ---
+if [[ -z "$ipinfo" ]]; then
+    echo -e "${redbg}[!] No response from ipinfo.io — check your internet connection. Exiting.${nc}"
+    exit 1
+fi
+
+# --- Handle ipinfo.io reporting an invalid/unroutable/private IP ---
+if echo "$ipinfo" | grep -q '"error"'; then
+    err_msg=$(echo "$ipinfo" | grep -oP '"message":\s*"\K[^"]+')
+    echo -e "${redbg}[!] ipinfo.io error: ${err_msg:-Invalid IP}${nc}"
+    exit 1
+fi
+
+if echo "$ipinfo" | grep -q '"bogon":\s*true'; then
+    echo -e "${redbg}[!] '${IP}' is a private/reserved (bogon) address with no public location data. Exiting.${nc}"
+    exit 1
+fi
 
 ip=$(echo "$ipinfo" | grep -oP '"ip":\s*"\K[^"]+')
 country=$(echo "$ipinfo" | grep -oP '"country":\s*"\K[^"]+')
@@ -71,13 +116,17 @@ to_dms() {
     echo "${deg}°${min}'${sec}\"${dir}"
 }
 loc=$(echo "$ipinfo" | grep -oP '"loc":\s*"\K[^"]+')
-lat=$(echo "$loc" | cut -d',' -f1)
-lon=$(echo "$loc" | cut -d',' -f2)
 
-lat_dms=$(to_dms "$lat" "N" "S")
-lon_dms=$(to_dms "$lon" "E" "W")
-
-maps_url="https://www.google.com/maps/place/${lat_dms}+${lon_dms}/"
+if [[ -z "$loc" ]]; then
+    # no coordinates for this IP — skip DMS conversion instead of crashing bc
+    maps_url="N/A (no location data for this IP)"
+else
+    lat=$(echo "$loc" | cut -d',' -f1)
+    lon=$(echo "$loc" | cut -d',' -f2)
+    lat_dms=$(to_dms "$lat" "N" "S")
+    lon_dms=$(to_dms "$lon" "E" "W")
+    maps_url="https://www.google.com/maps/place/${lat_dms}+${lon_dms}/"
+fi
 org=$(echo "$ipinfo" | grep -oP '"org":\s*"\K[^"]+')
 timezone=$(echo "$ipinfo" | grep -oP '"timezone":\s*"\K[^"]+')
 
