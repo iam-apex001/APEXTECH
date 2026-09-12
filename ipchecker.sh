@@ -8,11 +8,6 @@ cyan="\e[36m"
 nc="\e[0m"
 redbg="\e[41m"
 greenbg="\e[42m"
-echo -e "${magenta}[*] updating packages... (result in result.txt)"
-apt-get update -y && apt-get upgrade -y > result.txt
-echo -e "${green}[*]=> upgraded successfully"
-
-
 echo -e "${magenta}[*] installing tput... (result in result.txt)"
 apt-get install -y ncurses-utils > result.txt
 echo -e "${green}[*]=> tput installed successfully"
