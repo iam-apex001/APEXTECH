@@ -1,4 +1,4 @@
-# https://www.google.com/maps /place/9°03'28.4"N+7°29'42.4"E/
+
 red="\e[1;31m"
 green="\e[1;32m"
 yellow="\e[33m"
