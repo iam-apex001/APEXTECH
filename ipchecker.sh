@@ -9,7 +9,7 @@ nc="\e[0m"
 redbg="\e[41m"
 greenbg="\e[42m"
 echo -e "${magenta}[*] updating packages... (result in result.txt)"
-apt-get update -y > result.txt && pkg upgrade -y > result.txt
+apt-get update -y && apt-get upgrade -y > result.txt
 echo -e "${green}[*]=> upgraded successfully"
 
 
